@@ -6,6 +6,7 @@ px4_add_board(
 	LABEL rover
 	TOOLCHAIN arm-none-eabi
 	ARCHITECTURE cortex-m4
+	CONSTRAINED_MEMORY
 	ROMFSROOT px4fmu_common
 	IO px4_io-v2_default
 	CONSTRAINED_FLASH
@@ -17,7 +18,7 @@ px4_add_board(
 		TEL4:/dev/ttyS6
 
 	DRIVERS
-		adc
+		adc/board_adc
 		barometer/ms5611
 		batt_smbus
 		camera_capture
@@ -26,13 +27,14 @@ px4_add_board(
 		gps
 		imu/l3gd20
 		imu/lsm303d
-		imu/mpu6000
-		#imu/mpu9250
+		imu/invensense/mpu6000
+		#imu/invensense/mpu9250
 		lights/rgbled
 		magnetometer/hmc5883
 		optical_flow/px4flow
-		px4fmu
+		pwm_out
 		px4io
+		smart_battery/batmon
 		tone_alarm
 
 	MODULES
@@ -50,16 +52,17 @@ px4_add_board(
 		battery_status
 		rc_update
 		sensors
-		vmount
+		temperature_compensation
+		#vmount
 
 	SYSTEMCMDS
 		bl_update
-		#config
 		#dumpfile
 		#esc_calib
 		hardfault_log
 		i2cdetect
 		#led_control
+		mft
 		mixer
 		#motor_ramp
 		#motor_test
@@ -73,8 +76,8 @@ px4_add_board(
 		top
 		#topic_listener
 		tune_control
+		uorb
 		usb_connected
 		ver
 		work_queue
-
 	)

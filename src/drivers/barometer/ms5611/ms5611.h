@@ -58,6 +58,10 @@
 #define IOCTL_RESET			2
 #define IOCTL_MEASURE			3
 
+#define MS5611_ADDRESS_1		0x76	/* address select pins pulled high (PX4FMU series v1.6+) */
+#define MS5611_ADDRESS_2		0x77    /* address select pins pulled low (PX4FMU prototypes) */
+
+
 namespace ms5611
 {
 
@@ -90,7 +94,9 @@ extern bool crc4(uint16_t *n_prom);
 } /* namespace */
 
 /* interface factories */
-extern device::Device *MS5611_spi_interface(ms5611::prom_u &prom_buf, uint8_t busnum);
-extern device::Device *MS5611_i2c_interface(ms5611::prom_u &prom_buf, uint8_t busnum);
+extern device::Device *MS5611_spi_interface(ms5611::prom_u &prom_buf, uint32_t devid, uint8_t busnum, int bus_frequency,
+		spi_mode_e spi_mode);
+extern device::Device *MS5611_i2c_interface(ms5611::prom_u &prom_buf, uint32_t devid, uint8_t busnum,
+		int bus_frequency);
 
-typedef device::Device *(*MS5611_constructor)(ms5611::prom_u &prom_buf, uint8_t busnum);
+typedef device::Device *(*MS5611_constructor)(ms5611::prom_u &prom_buf, uint32_t devid, uint8_t busnum);

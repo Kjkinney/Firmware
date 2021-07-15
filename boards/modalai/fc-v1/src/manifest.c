@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2018, 2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,7 +49,9 @@
 #include <nuttx/config.h>
 #include <board_config.h>
 
+#include <inttypes.h>
 #include <stdbool.h>
+#include <syslog.h>
 
 #include "systemlib/px4_macros.h"
 
@@ -71,6 +73,14 @@ static const px4_hw_mft_item_t device_unsupported = {0, 0, 0};
 // List of components on a specific board configuration
 // The index of those components is given by the enum (px4_hw_mft_item_id_t)
 // declared in board_common.h
+static const px4_hw_mft_item_t hw_mft_list_fc0006[] = {
+	{
+		.present     = 0,
+		.mandatory   = 0,
+		.connection  = px4_hw_con_unknown,
+	},
+};
+
 static const px4_hw_mft_item_t hw_mft_list_fc0100[] = {
 	{
 		.present     = 0,
@@ -79,33 +89,10 @@ static const px4_hw_mft_item_t hw_mft_list_fc0100[] = {
 	},
 };
 
-static const px4_hw_mft_item_t hw_mft_list_fc0110[] = {
-	{
-		.present     = 0,
-		.mandatory   = 0,
-		.connection  = px4_hw_con_unknown,
-	},
-};
-
 static px4_hw_mft_list_entry_t mft_lists[] = {
-	{0x0000, hw_mft_list_fc0100, arraySize(hw_mft_list_fc0100)},
-	{0x0100, hw_mft_list_fc0110, arraySize(hw_mft_list_fc0110)}
+	{0x0006, hw_mft_list_fc0006, arraySize(hw_mft_list_fc0006)},
+	{0x0100, hw_mft_list_fc0100, arraySize(hw_mft_list_fc0100)}
 };
-
-
-/************************************************************************************
- * Name: board_rc_input
- *
- * Description:
- *   All boards my optionally provide this API to invert the Serial RC input.
- *   This is needed on SoCs that support the notion RXINV or TXINV as opposed to
- *   and external XOR controlled by a GPIO
- *
- ************************************************************************************/
-__EXPORT bool board_supports_single_wire(uint32_t uxart_base)
-{
-	return uxart_base == RC_UXART_BASE;
-}
 
 /************************************************************************************
  * Name: board_query_manifest
@@ -138,7 +125,7 @@ __EXPORT px4_hw_mft_item board_query_manifest(px4_hw_mft_item_id_t id)
 		}
 
 		if (boards_manifest == px4_hw_mft_list_uninitialized) {
-			syslog(LOG_ERR, "[boot] Board %4x is not supported!\n", ver_rev);
+			syslog(LOG_ERR, "[boot] Board %4"  PRIx32 " is not supported!\n", ver_rev);
 		}
 	}
 

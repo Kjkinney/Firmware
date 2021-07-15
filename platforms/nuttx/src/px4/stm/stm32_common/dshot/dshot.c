@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (C) 2019 PX4 Development Team. All rights reserved.
+ * Copyright (C) 2019, 2021 PX4 Development Team. All rights reserved.
  * Author: Igor Misic <igy1000mb@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,14 +69,18 @@ typedef struct dshot_handler_t {
 	uint32_t		dma_size;
 } dshot_handler_t;
 
-#define DMA_BUFFER_MASK    (PX4_ARCH_DCACHE_LINESIZE - 1)
-#define DMA_ALIGN_UP(n)    (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
+#if defined(CONFIG_ARMV7M_DCACHE)
+#  define DMA_BUFFER_MASK    (ARMV7M_DCACHE_LINESIZE - 1)
+#  define DMA_ALIGN_UP(n)    (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
+#else
+#define DMA_ALIGN_UP(n) (n)
+#endif
 #define DSHOT_BURST_BUFFER_SIZE(motors_number) (DMA_ALIGN_UP(sizeof(uint32_t)*ONE_MOTOR_BUFF_SIZE*motors_number))
 
 static dshot_handler_t dshot_handler[DSHOT_TIMERS] = {};
 static uint16_t *motor_buffer = NULL;
 static uint8_t dshot_burst_buffer_array[DSHOT_TIMERS * DSHOT_BURST_BUFFER_SIZE(MAX_NUM_CHANNELS_PER_TIMER)]
-__attribute__((aligned(PX4_ARCH_DCACHE_LINESIZE))); // DMA buffer
+px4_cache_aligned_data();
 static uint32_t *dshot_burst_buffer[DSHOT_TIMERS] = {};
 
 #ifdef BOARD_DSHOT_MOTOR_ASSIGNMENT
@@ -108,7 +112,7 @@ int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq)
 #pragma GCC diagnostic ignored "-Wcast-align"
 		dshot_burst_buffer[timer] = (uint32_t *)&dshot_burst_buffer_array[buffer_offset];
 #pragma GCC diagnostic pop
-		buffer_offset += DSHOT_BURST_BUFFER_SIZE(io_timers[timer].dshot.channels_number);
+		buffer_offset += DSHOT_BURST_BUFFER_SIZE(io_timers_channel_mapping.element[timer].channel_count);
 
 		if (buffer_offset > sizeof(dshot_burst_buffer_array)) {
 			return -EINVAL; // something is wrong with the board configuration or some other logic
@@ -143,8 +147,9 @@ int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq)
 	for (uint8_t timer_index = 0; (timer_index < DSHOT_TIMERS) && (OK == ret_val); timer_index++) {
 
 		if (true == dshot_handler[timer_index].init) {
-			dshot_handler[timer_index].dma_size = io_timers[timer_index].dshot.channels_number * ONE_MOTOR_BUFF_SIZE;
-			io_timer_set_dshot_mode(timer_index, dshot_pwm_freq, io_timers[timer_index].dshot.channels_number);
+			dshot_handler[timer_index].dma_size = io_timers_channel_mapping.element[timer_index].channel_count *
+							      ONE_MOTOR_BUFF_SIZE;
+			io_timer_set_dshot_mode(timer_index, dshot_pwm_freq, io_timers_channel_mapping.element[timer_index].channel_count);
 
 			dshot_handler[timer_index].dma_handle = stm32_dmachannel(io_timers[timer_index].dshot.dmamap);
 
@@ -165,7 +170,7 @@ void up_dshot_trigger(void)
 
 		if (true == dshot_handler[timer].init) {
 
-			uint8_t motors_number = io_timers[timer].dshot.channels_number;
+			uint8_t motors_number = io_timers_channel_mapping.element[timer].channel_count;
 			dshot_dmar_data_prepare(timer, first_motor, motors_number);
 
 			// Flush cache so DMA sees the data
@@ -229,7 +234,7 @@ static void dshot_motor_data_set(uint32_t motor_number, uint16_t throttle, bool 
 	motor_buffer[motor_number * ONE_MOTOR_BUFF_SIZE + DSHOT_END_OF_STREAM] = 0;
 }
 
-void up_dshot_motor_data_set(uint32_t motor_number, uint16_t throttle, bool telemetry)
+void up_dshot_motor_data_set(unsigned motor_number, uint16_t throttle, bool telemetry)
 {
 	dshot_motor_data_set(motor_number, throttle + DShot_cmd_MIN_throttle, telemetry);
 }

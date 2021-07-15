@@ -42,7 +42,6 @@ const char *get_commands()
 {
 
 	static const char *commands =
-		"uorb start\n"
 		"param set CAL_GYRO0_ID 2293760\n"
 		"param set CAL_ACC0_ID 1310720\n"
 		"param set CAL_ACC1_ID 1376256\n"
@@ -53,6 +52,8 @@ const char *get_commands()
 		"commander start --hil\n"
 		"sensors start\n"
 		"ekf2 start\n"
+		"mc_hover_thrust_estimator start\n"
+		"flight_mode_manager start\n"
 		"mc_pos_control start\n"
 		"mc_att_control start\n"
 		"mc_rate_control start\n"
@@ -93,10 +94,8 @@ const char *get_commands()
 
 		"param set MAV_TYPE 2\n"
 		"mixer load /dev/pwm_output0 /startup/quad_x.main.mix\n"
-		"list_devices\n"
 		"list_files\n"
 		"list_tasks\n"
-		"list_topics\n"
 		"sleep 10\n"
 		"list_tasks\n"
 		"sleep 10\n"

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2019, 2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,161 +33,77 @@
 
 #include "L3GD20.hpp"
 
-/**
- * Local functions in support of the shell command.
- */
-namespace l3gd20
+#include <px4_platform_common/getopt.h>
+#include <px4_platform_common/module.h>
+
+void
+L3GD20::print_usage()
 {
-
-L3GD20 *g_dev{nullptr};
-
-/**
- * Start the driver.
- *
- * This function call only returns once the driver
- * started or failed to detect the sensor.
- */
-static void start(bool external_bus, enum Rotation rotation)
-{
-	if (g_dev != nullptr) {
-		errx(0, "already started");
-	}
-
-	/* create the driver */
-	if (external_bus) {
-#if defined(PX4_SPI_BUS_EXT) && defined(PX4_SPIDEV_EXT_GYRO)
-		g_dev = new L3GD20(PX4_SPI_BUS_EXT, PX4_SPIDEV_EXT_GYRO, rotation);
-#else
-		errx(0, "External SPI not available");
-#endif
-
-	} else {
-		g_dev = new L3GD20(PX4_SPI_BUS_SENSORS, PX4_SPIDEV_GYRO, rotation);
-	}
-
-	if (g_dev == nullptr) {
-		goto fail;
-	}
-
-	if (OK != g_dev->init()) {
-		goto fail;
-	}
-
-	exit(0);
-fail:
-
-	if (g_dev != nullptr) {
-		delete g_dev;
-		g_dev = nullptr;
-	}
-
-	errx(1, "driver start failed");
+	PRINT_MODULE_USAGE_NAME("l3gd20", "driver");
+	PRINT_MODULE_USAGE_SUBCATEGORY("imu");
+	PRINT_MODULE_USAGE_COMMAND("start");
+	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(false, true);
+	PRINT_MODULE_USAGE_PARAM_INT('R', 0, 0, 35, "Rotation", true);
+	PRINT_MODULE_USAGE_COMMAND("regdump");
+	PRINT_MODULE_USAGE_COMMAND("testerror");
+	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 }
 
-/**
- * Print a little info about the driver.
- */
-static void info()
+void L3GD20::custom_method(const BusCLIArguments &cli)
 {
-	if (g_dev == nullptr) {
-		errx(1, "driver not running\n");
+	switch (cli.custom1) {
+	case 0: print_registers(); break;
+
+	case 1: test_error(); break;
 	}
-
-	printf("state @ %p\n", g_dev);
-	g_dev->print_info();
-
-	exit(0);
 }
 
-/**
- * Dump the register information
- */
-static void regdump()
+extern "C" int l3gd20_main(int argc, char *argv[])
 {
-	if (g_dev == nullptr) {
-		errx(1, "driver not running");
-	}
-
-	printf("regdump @ %p\n", g_dev);
-	g_dev->print_registers();
-
-	exit(0);
-}
-
-/**
- * trigger an error
- */
-static void test_error()
-{
-	if (g_dev == nullptr) {
-		errx(1, "driver not running");
-	}
-
-	printf("regdump @ %p\n", g_dev);
-	g_dev->test_error();
-
-	exit(0);
-}
-
-static void usage()
-{
-	warnx("missing command: try 'start', 'info', 'testerror' or 'regdump'");
-	warnx("options:");
-	warnx("    -X    (external bus)");
-	warnx("    -R rotation");
-}
-
-} // namespace
-
-extern "C" __EXPORT int l3gd20_main(int argc, char *argv[])
-{
-	int myoptind = 1;
 	int ch;
-	const char *myoptarg = nullptr;
-	bool external_bus = false;
-	enum Rotation rotation = ROTATION_NONE;
+	using ThisDriver = L3GD20;
+	BusCLIArguments cli{false, true};
+	cli.default_spi_frequency = 11 * 1000 * 1000;
 
-	while ((ch = px4_getopt(argc, argv, "XR:", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = cli.getOpt(argc, argv, "R:")) != EOF) {
 		switch (ch) {
-		case 'X':
-			external_bus = true;
-			break;
-
 		case 'R':
-			rotation = (enum Rotation)atoi(myoptarg);
+			cli.rotation = (enum Rotation)atoi(cli.optArg());
 			break;
-
-		default:
-			l3gd20::usage();
-			return 0;
 		}
 	}
 
-	if (myoptind >= argc) {
-		l3gd20::usage();
+	const char *verb = cli.optArg();
+
+	if (!verb) {
+		ThisDriver::print_usage();
 		return -1;
 	}
 
-	const char *verb = argv[myoptind];
+	BusInstanceIterator iterator(MODULE_NAME, cli, DRV_GYR_DEVTYPE_L3GD20);
 
-	/*
-	 * Start/load the driver.
-
-	 */
 	if (!strcmp(verb, "start")) {
-		l3gd20::start(external_bus, rotation);
-
-	} else if (!strcmp(verb, "info")) {
-		l3gd20::info();
-
-	} else if (!strcmp(verb, "regdump")) {
-		l3gd20::regdump();
-
-	} else if (!strcmp(verb, "testerror")) {
-		l3gd20::test_error();
+		return ThisDriver::module_start(cli, iterator);
 	}
 
-	l3gd20::usage();
+	if (!strcmp(verb, "stop")) {
+		return ThisDriver::module_stop(iterator);
+	}
 
+	if (!strcmp(verb, "status")) {
+		return ThisDriver::module_status(iterator);
+	}
+
+	if (!strcmp(verb, "regdump")) {
+		cli.custom1 = 0;
+		return ThisDriver::module_custom_method(cli, iterator);
+	}
+
+	if (!strcmp(verb, "testerror")) {
+		cli.custom1 = 1;
+		return ThisDriver::module_custom_method(cli, iterator);
+	}
+
+	ThisDriver::print_usage();
 	return -1;
 }

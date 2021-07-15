@@ -32,6 +32,9 @@
 ############################################################################
 
 px4_add_library(drivers_board
+	board_pwm_out.cpp
+	i2c.cpp
 	init.cpp
+	spi.cpp
 )
 target_link_libraries(drivers_board PRIVATE robotics_cape)

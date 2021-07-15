@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2012 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2016-2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file i2c.h
+ * @file I2C.hpp
  *
  * Base class for devices connected via I2C.
  */
@@ -42,12 +42,7 @@
 
 #include "../CDev.hpp"
 
-#include <px4_platform_common/i2c.h>
-
-#ifdef __PX4_LINUX
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
-#endif
+struct I2CSPIDriverConfig;
 
 namespace device __EXPORT
 {
@@ -78,13 +73,14 @@ protected:
 	/**
 	 * @ Constructor
 	 *
+	 * @param device_type	The device type (see drv_sensor.h)
 	 * @param name		Driver name
-	 * @param devname	Device node name
 	 * @param bus		I2C bus on which the device lives
 	 * @param address	I2C bus address, or zero if set_address will be used
 	 * @param frequency	I2C bus frequency for the device (currently not used)
 	 */
-	I2C(const char *name, const char *devname, const int bus, const uint16_t address, const uint32_t frequency);
+	I2C(uint8_t device_type, const char *name, const int bus, const uint16_t address, const uint32_t frequency);
+	I2C(const I2CSPIDriverConfig &config);
 	virtual ~I2C();
 
 	/**
@@ -109,6 +105,7 @@ protected:
 	virtual bool	external() const override { return px4_i2c_bus_external(_device_id.devid_s.bus); }
 
 private:
+	uint32_t		_frequency{0};
 	int			_fd{-1};
 
 };
